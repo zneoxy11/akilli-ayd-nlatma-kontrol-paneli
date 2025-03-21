@@ -1,0 +1,305 @@
+using System;
+using System.IO;
+using System.IO.Ports;
+using System.Drawing;
+using System.Windows.Forms;
+
+namespace proje
+{
+    public partial class Form1 : Form
+    {
+        private SerialPort arduinoPort;
+        private ComboBox cmbPorts, cmbCategory;
+        private RadioButton rbAuto, rbManuel;
+        private Button btnLightOn, btnLightOff, btnConnect, btnRefreshPorts;
+        private Label lblStatus;
+        private Image backgroundImage;
+
+        public Form1()
+        {
+            // Form Özellikleri
+            this.Text = "Akıllı Aydınlatma Kontrol Paneli";
+            this.Size = new Size(400, 550);
+            this.StartPosition = FormStartPosition.CenterScreen;
+
+            // Arka plan için gerekli ayarlar
+            this.SetStyle(
+                ControlStyles.AllPaintingInWmPaint |
+                ControlStyles.OptimizedDoubleBuffer |
+                ControlStyles.UserPaint,
+                true
+            );
+
+            // Arka plan resmini yükle
+            try
+            {
+                string backgroundPath = Path.Combine(Application.StartupPath, "background.jpg");
+                if (File.Exists(backgroundPath))
+                {
+                    backgroundImage = Image.FromFile(backgroundPath);
+                }
+                else
+                {
+                    this.BackColor = Color.WhiteSmoke;
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Arka plan yüklenirken hata oluştu: {ex.Message}");
+                this.BackColor = Color.WhiteSmoke;
+            }
+
+            // Kategori ComboBox
+            Label lblCategory = new Label
+            {
+                Text = "Kategori Seçin:",
+                Location = new Point(50, 30),
+                AutoSize = true,
+                Font = new Font("Arial", 10, FontStyle.Bold),
+                BackColor = Color.Transparent
+            };
+
+            cmbCategory = new ComboBox
+            {
+                Location = new Point(50, 60),
+                Width = 300,
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                Font = new Font("Arial", 10)
+            };
+            cmbCategory.Items.AddRange(new string[] { "Salon", "Yatak Odası", "Mutfak", "Bahçe", "Çalışma Odası" });
+
+            // Mod Seçim Grubu
+            GroupBox gbMode = new GroupBox
+            {
+                Text = "Çalışma Modu",
+                Location = new Point(50, 100),
+                Size = new Size(300, 100),
+                Font = new Font("Arial", 10, FontStyle.Bold)
+            };
+
+            rbAuto = new RadioButton
+            {
+                Text = "Otomatik Mod",
+                Location = new Point(20, 30),
+                Checked = true,
+                Font = new Font("Arial", 10),
+                BackColor = Color.Transparent
+            };
+
+            rbManuel = new RadioButton
+            {
+                Text = "Manuel Mod",
+                Location = new Point(20, 60),
+                Font = new Font("Arial", 10),
+                BackColor = Color.Transparent
+            };
+
+            gbMode.Controls.Add(rbAuto);
+            gbMode.Controls.Add(rbManuel);
+
+            // Işık Kontrol Butonları
+            btnLightOn = new Button
+            {
+                Text = "Işığı Aç",
+                Location = new Point(50, 250),
+                Size = new Size(130, 50),
+                Enabled = false,
+                BackColor = Color.Green,
+                ForeColor = Color.White,
+                Font = new Font("Arial", 10, FontStyle.Bold)
+            };
+
+            btnLightOff = new Button
+            {
+                Text = "Işığı Kapat",
+                Location = new Point(220, 250),
+                Size = new Size(130, 50),
+                Enabled = false,
+                BackColor = Color.Red,
+                ForeColor = Color.White,
+                Font = new Font("Arial", 10, FontStyle.Bold)
+            };
+
+            // Durum Etiketi
+            lblStatus = new Label
+            {
+                Text = "Durum: Bağlantı Bekleniyor",
+                Location = new Point(50, 320),
+                AutoSize = true,
+                Font = new Font("Arial", 10, FontStyle.Bold),
+                BackColor = Color.Transparent
+            };
+
+            // Seri Port Listesi ComboBox
+            Label lblPort = new Label
+            {
+                Text = "Bağlantı Noktası Seçin:",
+                Location = new Point(50, 350),
+                AutoSize = true,
+                Font = new Font("Arial", 10, FontStyle.Bold),
+                BackColor = Color.Transparent
+            };
+
+            cmbPorts = new ComboBox
+            {
+                Location = new Point(50, 380),
+                Width = 200,
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                Font = new Font("Arial", 10)
+            };
+
+            // Portları Yenile Butonu
+            btnRefreshPorts = new Button
+            {
+                Text = "Yenile",
+                Location = new Point(260, 380),
+                Size = new Size(90, 30),
+                BackColor = Color.CadetBlue,
+                ForeColor = Color.White,
+                Font = new Font("Arial", 10, FontStyle.Bold)
+            };
+
+            // Bağlantı Butonu
+            btnConnect = new Button
+            {
+                Text = "Bağlan",
+                Location = new Point(50, 420),
+                Size = new Size(300, 50),
+                BackColor = Color.DarkOrange,
+                ForeColor = Color.White,
+                Font = new Font("Arial", 10, FontStyle.Bold)
+            };
+
+            // Kontrolleri Forma Ekle
+            this.Controls.Add(lblCategory);
+            this.Controls.Add(cmbCategory);
+            this.Controls.Add(gbMode);
+            this.Controls.Add(btnLightOn);
+            this.Controls.Add(btnLightOff);
+            this.Controls.Add(lblStatus);
+            this.Controls.Add(lblPort);
+            this.Controls.Add(cmbPorts);
+            this.Controls.Add(btnRefreshPorts);
+            this.Controls.Add(btnConnect);
+
+            // Event Handler'ları Tanımla
+            this.Paint += new PaintEventHandler(Form1_Paint);
+            this.Resize += new EventHandler(Form1_Resize);
+            btnLightOn.Click += (sender, e) => SendCommand("ON");
+            btnLightOff.Click += (sender, e) => SendCommand("OFF");
+            rbAuto.CheckedChanged += (sender, e) => SendCommand("AUTO");
+            rbManuel.CheckedChanged += (sender, e) => SendCommand("MANUEL");
+            btnConnect.Click += ConnectToArduino;
+            btnRefreshPorts.Click += (sender, e) => ListAvailablePorts();
+
+            // Uygulama Açıldığında Portları Listele
+            ListAvailablePorts();
+
+
+            try
+            {
+                string backgroundPath = @"C:\Users\Burak\Downloads\401738873922.png";
+                if (File.Exists(backgroundPath))
+                {
+                    backgroundImage = Image.FromFile(backgroundPath);
+                    this.BackgroundImage = backgroundImage;
+                    this.BackgroundImageLayout = ImageLayout.Stretch; // Arka planı ekle ve ölçeklendir
+                }
+                else
+                {
+                    MessageBox.Show("Arka plan resmi bulunamadı. Varsayılan arka plan kullanılacak.",
+                        "Uyarı", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    this.BackColor = Color.WhiteSmoke;
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Arka plan yüklenirken hata oluştu: {ex.Message}",
+                    "Hata", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                this.BackColor = Color.WhiteSmoke;
+            }
+
+        }
+
+        // Arka plan çizimi için Paint olayı
+        private void Form1_Paint(object sender, PaintEventArgs e)
+        {
+            if (backgroundImage != null)
+            {
+                e.Graphics.DrawImage(backgroundImage, 0, 0, this.ClientSize.Width, this.ClientSize.Height);
+            }
+        }
+
+        // Form yeniden boyutlandırıldığında
+        private void Form1_Resize(object sender, EventArgs e)
+        {
+            this.Invalidate();
+        }
+
+        private void ListAvailablePorts()
+        {
+            cmbPorts.Items.Clear();
+            string[] ports = SerialPort.GetPortNames();
+            cmbPorts.Items.AddRange(ports);
+
+            if (ports.Length > 0)
+                cmbPorts.SelectedIndex = 0;
+            else
+                lblStatus.Text = "Durum: COM Port Bulunamadı!";
+        }
+
+        private void ConnectToArduino(object sender, EventArgs e)
+        {
+            if (cmbPorts.SelectedItem == null)
+            {
+                MessageBox.Show("Lütfen bir COM portu seçin!");
+                return;
+            }
+
+            try
+            {
+                string selectedPort = cmbPorts.SelectedItem.ToString();
+                arduinoPort = new SerialPort(selectedPort, 9600);
+                arduinoPort.Open();
+                lblStatus.Text = $"Durum: {selectedPort} bağlı!";
+                MessageBox.Show($"{selectedPort} bağlantısı başarılı!");
+
+                // Butonları Aktif Et
+                btnLightOn.Enabled = true;
+                btnLightOff.Enabled = true;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Bağlantı hatası: " + ex.Message);
+            }
+        }
+
+        private void SendCommand(string command)
+        {
+            if (arduinoPort != null && arduinoPort.IsOpen)
+            {
+                arduinoPort.WriteLine(command);
+            }
+            else
+            {
+                MessageBox.Show("Arduino bağlantısı yapılmadı!");
+            }
+        }
+
+        // Form kapatılırken kaynakları temizle
+        protected override void OnFormClosing(FormClosingEventArgs e)
+        {
+            base.OnFormClosing(e);
+            if (backgroundImage != null)
+            {
+                backgroundImage.Dispose();
+            }
+            if (arduinoPort != null && arduinoPort.IsOpen)
+            {
+                arduinoPort.Close();
+                arduinoPort.Dispose();
+            }
+            
+        }
+    }
+}

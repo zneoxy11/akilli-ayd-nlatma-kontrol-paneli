@@ -1,0 +1,12 @@
+C:\Users\Burak\Desktop\proje\proje\bin\Debug\proje.exe.config
+C:\Users\Burak\Desktop\proje\proje\bin\Debug\proje.exe
+C:\Users\Burak\Desktop\proje\proje\bin\Debug\proje.pdb
+C:\Users\Burak\Desktop\proje\proje\obj\Debug\proje.csproj.AssemblyReference.cache
+C:\Users\Burak\Desktop\proje\proje\obj\Debug\proje.Properties.Resources.resources
+C:\Users\Burak\Desktop\proje\proje\obj\Debug\proje.csproj.GenerateResource.cache
+C:\Users\Burak\Desktop\proje\proje\obj\Debug\proje.csproj.CoreCompileInputs.cache
+C:\Users\Burak\Desktop\proje\proje\obj\Debug\proje.exe
+C:\Users\Burak\Desktop\proje\proje\obj\Debug\proje.pdb
+C:\Users\Burak\Desktop\proje\proje\bin\Debug\Newtonsoft.Json.dll
+C:\Users\Burak\Desktop\proje\proje\bin\Debug\Newtonsoft.Json.xml
+C:\Users\Burak\Desktop\proje\proje\obj\Debug\proje.csproj.Up2Date
